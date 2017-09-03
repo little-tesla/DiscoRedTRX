@@ -5131,7 +5131,7 @@ void MeasureZeroPower(void){
 
 
 void create_ChildWindow_20(void) {//******************** TX Menu ******************************
-	ptr20=SGUI_WindowCreateChild(20,0,0,472,272); // Child-Window (Nr=20)
+	ptr20=SGUI_WindowCreateChild(20,0,0,480,272); // Child-Window (Nr=20)
 	SGUI_WindowSetColor(ptr20,RGB_COL_BLACK,0x076CE);
 	SGUI_TextSetCursor(20,6);
 	SGUI_TextSetDefFont(&Arial_11x18);
@@ -5179,8 +5179,8 @@ void create_ChildWindow_20(void) {//******************** TX Menu ***************
 	SGUI_LabelSetStyle(label22, STYLE_FLAT);
 	SGUI_LabelSetText(label22,"100.0");
 
-	btn_ptt1=SGUI_ButtonCreate(300,12,120,40); // PTT_End-button (back to main menue)
-	SGUI_ButtonSetText(btn_ptt1,"PTT End");
+	btn_ptt1=SGUI_ButtonCreate(428,122,50,40); // PTT_End-button (back to main menue)
+	SGUI_ButtonSetText(btn_ptt1,"RX");
 	SGUI_ButtonSetHandler(btn_ptt1,btn_PTT_End);
 
 }
