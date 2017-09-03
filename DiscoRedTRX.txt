@@ -1,0 +1,65 @@
+Kommandos zum Erstellen der SD- Card
+DiscoRedTRX (Stand: 18.03.2017)
+
+SDFormatter 4.0 : formatieren (Windows)
+
+Win32DislImager: red-pitaya-ecosystem-0.95-debian-8.5-armhf-20160621 kopieren
+
+SD- Card in Red Pitaya stecken, USB- Verbindung herstellen:
+-im Gerätemanager die Port- Nr. ermitteln
+- Putty :  com5 (11) 115200   root  changeme
+
+echo -e "d\n2\nw" | fdisk /dev/mmcblk0
+parted -s /dev/mmcblk0 mkpart primary ext4 16MB 100%
+resize2fs /dev/mmcblk0p2
+- reboot
+
+Mit internet verbinden (
+
+wget https://github.com/pavel-demin/DiscoRedTRX/archive/master.tar.gz
+tar -zxf master.tar.gz
+
+
+cd DiscoRedTRX-master
+source build-wdsp.sh
+
+<< Inhalt>>
+svn co http://svn.tapr.org/repos_sdr_hpsdr/trunk/W5WC/PowerSDR_HPSDR_mRX_PS/Source/wdsp
+# svn co http://svn.tapr.org/repos_sdr_hpsdr/trunk/W5WC/Thetis/Source/wdsp
+
+patch -p 0 < patches/wdsp.patch
+
+cp -a patches/linux_port.* wdsp/
+cp -a patches/Makefile wdsp/
+
+rm -f wdsp/fftw3.h wdsp/libfftw3-3.* wdsp/wdsp.* wdsp/wisdom.c
+
+make -C wdsp
+
+<< >>
+
+
+Änderungen in main.c hochladen mit WinSCP
+Kopplung mit Ethernet und DHCP Server for Windows
+
+build-prog.sh hochladen
+start-wdsp hochladen
+
+source build-prog.sh
+
+<<Inhalt>>
+
+gcc -O3 -march=armv7-a -mcpu=cortex-a9 -mtune=cortex-a9 -mfpu=neon -mfloat-abi=hard -ffast-math -Wall main.c -o main -Iwdsp -Lwdsp -lwdsp -lasound -lfftw3 -lm -lpthread
+
+Kontrolle: main muss entstanden sein.
+
+in /etc/rc.local ergänzen:
+
+cd /root/DiscoRedTRX-master
+bash start-wdsp.sh
+
+<<Inhalt>>
+arecord -fFLOAT_LE -c2 -r48000 | ./main | aplay -fFLOAT_LE -c2 -r48000
+<< >>
+
+reboot
