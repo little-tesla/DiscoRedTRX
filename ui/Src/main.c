@@ -1,6 +1,6 @@
 //--------------------------------------------------------------
 // File     : main.c
-// Datum    : 05.07.2016
+// Datum    : 27.10.2017
 // Version  : 0.3
 // Autor    : Wolfgang Kiefer
 // EMail    : woki@onlinehome.de
@@ -12,8 +12,8 @@
 // Lib      : stm32f746g-disco_hal_lib (static)
 // Funktion : Hauptprogramm für RedPitaya Interface (Embedded Transceiver from Pavel Demin) DiscoRedTRX
 // USART    : COM6
-// RX- Pin  : PC7 ==> CN4 D0
-// TX- Pin  : PC6 ==> CN4 D1
+//  RX- Pin : PC7 ==> CN4 D0
+//  TX- Pin : PC6 ==> CN4 D1
 //--------------------------------------------------------------
 
 #include "main.h"
@@ -768,8 +768,8 @@ uint8_t i, j, k;
 
 k=(data &255)*8;
   for(i=0;i<6;i++) {
-    if(k & 0x80) j=1;
-    else j=0;
+    if((k & 0x80)==0) j=0;
+    else j=1;
     HAL_GPIO_WritePin(GPIOI, GPIO_PIN_3, j);// data bit
 
 
@@ -1114,6 +1114,7 @@ void DrawScale(void){
   RightCorner=230+(RightCorner*107)/10000;
   UB_Graphic2D_DrawFullRectDMA(0,113,480,17,SGUI_WINCOL);// delete old area
   UB_Graphic2D_DrawFullRectDMA(LeftCorner, 113, RightCorner- LeftCorner, 3, RGB_COL_RED);
+  SGUI_TextSetDefColor(RGB_COL_BLACK,SGUI_WINCOL);
   SGUI_TextSetDefFont(&Arial_8x13);
   SGUI_TextSetCursor(10,116);
   delta1=delta=helpFreq%1000;
@@ -1439,11 +1440,14 @@ int32_t filter[3];
 						tick4=timer4;
 						ShowSignalStrength();
 						timer5++;
+						if((FFT==0)&&(ModeNr<2)){
+							sprintf(&writ7[0],"%3.0d",3000/cw_dot_length);// Bpm  *********************************++
+							SGUI_LabelSetText(labelt4,writ7);
+						}
 						if(timer5>10){
 							timer5=0;//800 ms
 							redrawScale=1;
 						}
-
 					}
 				}
 				if(FFT!=0){
