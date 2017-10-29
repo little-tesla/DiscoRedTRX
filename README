@@ -19,7 +19,7 @@ commands:                     // comment
 	apk add make gcc         //only first time, activate make 
 					   // and gcc
 	lbu commit -d            //only first time
-	rm sdr-rtansceiver-emb
+	rm sdr-transceiver-emb
 	make 
 	ro 
 	reboot
