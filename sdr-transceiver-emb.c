@@ -40,6 +40,27 @@ union
   uint8_t bData[4];
 } unionA;
 
+enum com_data
+{
+  RX_FREQ = 1,
+  TX_FREQ,
+  SPEAKER_VOL,
+  MIC_VOL,
+  FILTER_BW,
+  MODULATION_MODE,
+  AGC_MODE,
+  TX_ON,
+  EXIT_MAIN,
+  GET_BUILD,
+  CW_THR_HI,
+  CW_THR_LO,
+  AUTO_NOTCH,
+  NOISE_BLANKER,
+  SetRXAEMNRRun,
+  SetRXAANRRun,
+  FFT_PARAM,
+};
+
 /* variables to handle I2C devices */
 int i2c_fd;
 int i2c_alex = 0;
@@ -90,14 +111,8 @@ uint8_t wert;
 uint16_t r;
 int flp[] = {1};
 int result;
-int ErrorCode = 0;      //BuildNumber 14  /* Build Number */
-pthread_mutex_t mutex1; //, mutex2;
-
-//pthread_attr_t tattr;
-//pthread_t tid;
-//int ret;
-//int newprio = 20;
-//struct sched_param param;
+int ErrorCode = 0;
+pthread_mutex_t mutex1;
 
 ssize_t i2c_write_addr_data8(int fd, uint8_t addr, uint8_t data)
 {
@@ -613,7 +628,7 @@ int main()
 
       switch (code)
       {
-      case 1: // RX frequency
+      case RX_FREQ: // RX frequency
         if (data > 62000000)
         {
           continue;
@@ -637,7 +652,7 @@ int main()
         }
         break;
 
-      case 2: // TX frequency
+      case TX_FREQ: // TX frequency
         if (data > 62000000)
           continue;
 
@@ -650,7 +665,7 @@ int main()
         }
         break;
 
-      case 3: // output volume
+      case SPEAKER_VOL: // output volume
         if (data > 40)
           continue;
         if (i2c_codec)
@@ -668,7 +683,7 @@ int main()
         }
         break;
 
-      case 4: // Microphone volume
+      case MIC_VOL: // Microphone volume
         if (data > 30)
           continue;
         if (i2c_codec)
@@ -686,7 +701,7 @@ int main()
         }
         break;
 
-      case 5:
+      case FILTER_BW:
         if (data > 9)
           continue;
         filter = data;
@@ -694,7 +709,7 @@ int main()
         SetTXABandpassFreqs(1, cutoff[mode][filter][0], cutoff[mode][filter][1]);
         break;
 
-      case 6:
+      case MODULATION_MODE:
         if (data > 7)
           continue; // WK
         mode = data;
@@ -740,14 +755,14 @@ int main()
         SetTXABandpassFreqs(1, cutoff[mode][filter][0], cutoff[mode][filter][1]);
         break;
 
-      case 7:
+      case AGC_MODE:
         if (data > 4)
           continue;
         agc = data;
         SetRXAAGCMode(0, agc);
         break;
 
-      case 8:
+      case TX_ON:
         if (data > 0x1)
           continue;
 
@@ -756,15 +771,15 @@ int main()
         *tx_level = ptt ? 32767 : 0;
         break;
 
-      case 9:
+      case EXIT_MAIN:
         running = 0;
         break;
 
-      case 10:
+      case GET_BUILD:
         SendUart(60, ErrorCode);
         break;
 
-      case 11:
+      case CW_THR_HI:
         if (mode > 1)
           continue;
         if ((data > 10000) || (data < 100))
@@ -772,7 +787,7 @@ int main()
         CW_ThresholdHigh = data;
         break;
 
-      case 12:
+      case CW_THR_LO:
         if (mode > 1)
           continue;
         if ((data > 400) || (data < 5))
@@ -780,7 +795,7 @@ int main()
         CW_ThresholdLow = data;
         break;
 
-      case 13:
+      case AUTO_NOTCH:
         if (data == 0)
           SetRXAANFRun(0, 0);
         else
@@ -790,7 +805,7 @@ int main()
         }
         break;
 
-      case 14:
+      case NOISE_BLANKER:
         if (data == 0)
           SetRXASNBARun(0, 0);
         else
@@ -799,7 +814,7 @@ int main()
         }
         break;
 
-      case 15:
+      case SetRXAEMNRRun:
         if (data == 0)
           SetRXAEMNRRun(0, 0);
         else
@@ -808,7 +823,7 @@ int main()
         }
         break;
 
-      case 16:
+      case SetRXAANRRun:
         if (data == 0)
           SetRXAANRRun(0, 0);
         else
@@ -817,9 +832,10 @@ int main()
         }
         break;
 
-      case 17:
+      case FFT_PARAM:
         unionA.dataA = data;
         FFT_new = unionA.bData[0];
+        
         if ((FFT_new >= 3) || (FFT_new == 0))
         {
           FFT = FFT_new = 0;
@@ -830,8 +846,10 @@ int main()
           }
           break;
         }
+
         Det_Mode = unionA.bData[1];
         Avg_Mode = unionA.bData[2] - 1; //values: -1 .. 3
+
         if (FFT_new == 1)
         {
           if (unionA.bData[3] > 5)
@@ -844,6 +862,7 @@ int main()
             unionA.bData[3] = 2;
           FFT_Length_new = 1 << (unionA.bData[3] + 8);
         }
+
         InitFFT(FFT_new);
         FFT_step = 0;
         FFT_data_rdy = 0;
@@ -855,6 +874,7 @@ int main()
         mux = data;
         *(tx_mux + 16) = data;
         *tx_mux = 2;
+
         if (i2c_codec)
         {
           *(dac_mux + 16) = data;

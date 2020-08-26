@@ -5,7 +5,7 @@ This fork fixes some problems and adds the functionality to control a GPIO exten
 This is a work in progress.
 
 Plese note that the code in this fork and the one from ted051 is not compatible with the version hosted by Pavel.
-Therefore follow the instructions below to install and update the base image to a working version.
+Therefore follow the instructions below to install and update the base image. Actually one needs to copy sdr-transceiver-emb.c to the RedPitaya and rebuild as described below.
 
 Currently the code running on the STM32 is untouched and has many bugs.
 Further known bugs are popcorn sound during reception depending on selected FFT type.
@@ -81,10 +81,11 @@ First four outputs are used as follows:
 * 0x05, 18 MHz, 3dB 25MHz
 * 0x08, 28 MHz, 3dB 35MHz
 * 0x09, 50MHz, 3dB 55MHz
-This configuration fits the Hermes filter which one can acquire from the bay.
+This configuration fits the Hermes filter which can be acquired from the bay.
 
 UART STM32 -- RedPitaya
 -----------------------
+The communication between RedPitaya and STM32 is based on UART. Baud = 115200, Stopbits = 1, Parity = None	
 
 STM32
 * RX = CN4 / Pin1
@@ -102,8 +103,22 @@ An RX/TX attenuator can be attached to the STM32 board and is controlled with SP
 
 |PE4306 Pin       |		STM32 Pin |
 |-----------------|---------------|
-|Pin1 = DATA 		  |   CN4/8|
+|Pin1 = DATA 	  |   CN4/8|
 |Pin2 = +3V  	  |	 CN6/4|
 |Pin3 = Ground 	  |	 CN6/6|
 |Pin4 = Clock 	  |	 CN4/3|
 |Pin5 = LatchEnable |	 CN4/5|
+
+PTT (STM32)
+-----------
+PTT is connected to the STM32.
+* PTT = CN7/1
+
+Stockton Coupler (STM32)
+------------------------
+To monitor the forward/reflected power the analog signals from the coupler can be connected to the STM32.
+
+* Power forward	CN5/4
+* Power reflected	CN5/3
+
+
