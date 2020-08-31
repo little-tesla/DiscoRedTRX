@@ -46,7 +46,7 @@ root@bar:~$ reboot
 HW Connection
 =============
 
-I2S on Red Pitaya
+I2S (Red Pitaya)
 -----------------
 
 The I2S interface is sharing pins with the ALEX interface. So, the two can’t be used simultaneously.
@@ -68,8 +68,8 @@ E2:
 * SDA -- E2/10
 * SCL -- E2/09
 
-Low-Pass filter
----------------
+Low-Pass filter (Red Pitaya)
+----------------------------
 
 This is a new feature. For Low-pass filter switching the PCA9555 GPIO extender is used with I2C address 0x21.
 It's connected to the same bus as the I2S (E2 connector)
@@ -121,4 +121,42 @@ To monitor the forward/reflected power the analog signals from the coupler can b
 * Power forward	CN5/4
 * Power reflected	CN5/3
 
+Software
+========
 
+Communication Protocol
+----------------------
+
+The protocol is used in both communication directions. Used communication protocol structure is as follows:
+
+```
+| Code, 1Byte | Data, 4Byte | CRC8, 1Byte |
+```
+The CRC check is currently ignored.
+
+Codes used in the Protocol:
+|Code       |		Direction |   Data & Description |
+|-----------------|-----------|-----------|
+|1 	  |   STM32>RedPitaya   |   uint32 0x006DDD00 = 7200000 Hz, RX Frequency |
+|2 	  |   STM32>RedPitaya   |   uint32 0x006DDD00 = 7200000 Hz, TX Frequency |
+|3 	  |   STM32>RedPitaya   |   uint32 0x00 ... 0x09, Speaker Volume |
+|4 	  |   STM32>RedPitaya   |   uint32 0x00 ... 0x09, Microphone Volume |
+|5 	  |   STM32>RedPitaya   |   uint32 0x00 ... 0x09, Filter Bandwidth |
+|6 	  |   STM32>RedPitaya   |   uint32 0x00 ... 0x06 ("CWL"	"CWU" "LSB" "USB" "AM" "FM" "DIGI" "SAM"), Demodulator Mode |
+|7 	  |   STM32>RedPitaya   |   uint32 0x00 ... 0x04 ("Off" "LONG" "SLOW" "MED"	"FAST"), AGC Mode |
+|8 	  |   STM32>RedPitaya   |   uint32 0x00 or 0x01, TX On |
+|9 	  |   STM32>RedPitaya   |   uint32 0x00, Exit Main |
+|10 	  |   STM32>RedPitaya   |   Not implemented, Get Build Number |
+|11 	  |   STM32>RedPitaya   |   CW Threshold High |
+|12 	  |   STM32>RedPitaya   |   CW Threshold Low |
+|13 	  |   STM32>RedPitaya   |   uint32 0x00 or 0x01, Auto Notch filter |
+|14 	  |   STM32>RedPitaya   |   uint32 0x00 or 0x01, Noise Blanker |
+|15 	  |   STM32>RedPitaya   |   uint32 0x00 or 0x01, Spectral NR |
+|16 	  |   STM32>RedPitaya   |   uint32 0x00 or 0x01, LMS NR |
+|17 	  |   STM32>RedPitaya   |   FFT (1=RF, 2=AF, 0=off), detector_mode, avg_mode, FFT_length, FFT Parameter |
+|85 	  |   RedPitaya>STM32   |   uint32 0x00 ... 0x0578 (0= 0 dBm, 1400 = -140 dBm (min)), Sinal Strength |
+|86 	  |   RedPitaya>STM32   |   CW Keyup |
+|89 	  |   RedPitaya>STM32   |   CW Keydown |
+|82 	  |   RedPitaya>STM32   |   CW Amplitude |
+|100 	  |   RedPitaya>STM32   |   FFT - Data (4Samples) |
+|86 	  |   RedPitaya>STM32   |   Begin of line FFT data |

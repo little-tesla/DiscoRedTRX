@@ -312,10 +312,10 @@ uint8_t touched; // for CW keyer input
 char stopped = 1;
 char start = 0;
 char gestartet = 0; // CW- output has started
-	//0: before sending
-	//1: sending ./-
-	//2: pause between ./-
-char zeichen; // actual sent Dash/Dot/Pause CW element
+					//0: before sending
+					//1: sending ./-
+					//2: pause between ./-
+char zeichen;		// actual sent Dash/Dot/Pause CW element
 char TestSignOld, TestSign;
 char LastSign;
 char Morsechar;
@@ -1162,16 +1162,21 @@ void PixelRow(uint8_t wert)
 	uint8_t l = wert;
 	float calc;
 	uint16_t color;
+	
 	if (CountPix++ < 26)
 		return;
+	
 	if (indexX == 0)
 		Waterfall();
+	
 	if (indexX >= 454)
 		return; //extra values >479 are ignored
+	
 	if (l > 80)
 	{
 		l = 80; // clipping max
 	}
+
 	//if(l<4) l=4;//clipping min
 	//calc=sqrt(100*l);
 	calc = l / 10.0; //0..8
@@ -1182,8 +1187,15 @@ void PixelRow(uint8_t wert)
 		color = (uint16_t)(44.4 * calc + 23514.0 * calc); //blue + red
 	else
 		color = (uint16_t)(7936.0 * calc + 252.0 * calc + 15.0 * calc); //Red + Green + Blue
+	/*
+	// 16bit Farbwert (R5G6B5)
+	// Red   (5bit) -> Bit15-Bit11
+	// Green (6bit) -> Bit10-Bit5
+	// Blue  (5bit) -> Bit4-Bit0
+	*/
 	WK_LCD_DrawPixel(indexX, 112, color);
 	indexX++;
+
 	if (indexX >= 454)
 	{ // end of line
 		if (FFT_control != 0)
@@ -1340,7 +1352,7 @@ void ShowSignalStrength(void)
 		SGUI_LabelSetText(label2, dBm_text); // "-  53dBm"   update String
 	}
 	else
-	{	//30 0x3ffe
+	{ //30 0x3ffe
 		//	maxcnt=0;
 		S_Text[3] = ' ';
 		S_Text[4] = ' ';
@@ -1668,14 +1680,14 @@ int main(void) // **************************************************************
 						}
 						DrawScale();
 						if (UALabel == 86)
-						{ //start pattern for FFT
+						{ // start pattern for FFT
 
 							CountPix = 0;
 							indexX = 0;
 							break;
 						}
 						else if (UALabel == 100)
-						{ //FFT- value
+						{ // FFT - value
 							if ((FFT & 1) == 0)
 								ShowWaterfall(S_Val);
 							else
@@ -2034,8 +2046,8 @@ int main(void) // **************************************************************
 					touched = 1;
 				}
 				if ((x - 290) * (x - 290) + (y - 140) * (y - 140) < 625)
-				{			  //inner circle
-							  // gliding area
+				{ //inner circle
+					// gliding area
 					area = 5; // nothing to do
 					if (oldarea == 5)
 					{

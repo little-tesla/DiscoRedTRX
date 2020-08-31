@@ -192,8 +192,8 @@ void CW_KEYDOWN_EVENT(void)
 {
 	curr_timestamp = smpl_ctr;
 	color = 0x1863; //black
-					// A receive tone start can only happen while we
-					// are idle, not inside of a character.
+		// A receive tone start can only happen while we
+		// are idle, not inside of a character.
 	if ((cw_receive_state != RS_IN_TONE))
 	{
 
