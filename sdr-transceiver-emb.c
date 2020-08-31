@@ -85,6 +85,7 @@ int i2c_alex = 0;
 
 uint32_t m_RxFreq = 7200000;
 uint32_t m_TxFreq = 7200000;
+uint32_t m_FftFreq = 7200000;
 
 const float Log2c[16] = {0.0, 0.09, 0.17, 0.25, 0.32, 0.39, 0.46, 0.52, 0.58, 0.64, 0.70, 0.75, 0.81, 0.86, 0.91, 0.95};
 volatile float *rx_data, *tx_data;
@@ -105,7 +106,7 @@ uint8_t help;
 volatile uint8_t FFT_new, FFT = 0;
 volatile uint8_t FFT_step = 0; //"ready for new Pixels"
 int8_t Analyzer_exists = 0;    // 1 if XCreateAnalyzer was successful
-pthread_t thread1, thread2;
+pthread_t thread1, thread2, thread3;
 int32_t cntr;
 uint16_t timer, tick, counter2 = 0;
 double rxbuffer0[512];
@@ -226,6 +227,7 @@ static void alex_write(uint32_t freq)
 
 void *tx_data_handler(void *arg);
 void *rx_data_handler(void *arg);
+void *fft_data_handler(void *arg);
 float log2x(int32_t x);
 uint8_t Threshold3(int32_t value);
 void SendUart(uint8_t scommand, uint32_t sdata);
@@ -270,6 +272,9 @@ int main()
         {{150, 1150}, {150, 1950}, {150, 2250}, {150, 2550}, {150, 2850}, {150, 3050}, {150, 3450}, {150, 3950}, {150, 4550}, {150, 5150}},
         {{-2500, 2500}, {-3000, 3000}, {-3500, 3500}, {-4000, 4000}, {-4500, 4500}, {-5000, 5000}, {-6000, 6000}, {-8000, 8000}, {-9000, 9000}, {-12500, 12500}},
         {{-2500, 2500}, {-3000, 3000}, {-3500, 3500}, {-4000, 4000}, {-4500, 4500}, {-5000, 5000}, {-6250, 6250}, {-8000, 8000}, {-9000, 9000}, {-12500, 12500}}};
+
+    int rc;
+    uint32_t u32UartSend;
 
     if ((fd = open("/dev/mem", O_RDWR)) < 0)
     {
@@ -375,10 +380,10 @@ int main()
 
     rx_phase = ((uint32_t *)(cfg + 4));
 
-    sp_rate = ((uint16_t *)(cfg + 12)); // FFT CIC rate 125 - 1250 (500 - 50kSps)
+    sp_rate = ((uint16_t *)(cfg + 12));  // FFT CIC rate 125 - 1250 (500 - 50kSps)
     sp_phase = ((uint32_t *)(cfg + 16)); // FFT frequency
-    sp_pre = ((uint16_t *)(cfg + 20)); // number of FFT bins minus one (511)
-    sp_tot = ((uint16_t *)(cfg + 22)); // number of FFT bins multiplied by the number of values to average minus one (511, 1023, 2047, etc)
+    sp_pre = ((uint16_t *)(cfg + 20));   // number of FFT bins minus one (511)
+    sp_tot = ((uint16_t *)(cfg + 22));   // number of FFT bins multiplied by the number of values to average minus one (511, 1023, 2047, etc)
 
     tx_phase = ((uint32_t *)(cfg + 24));
     tx_size = ((uint16_t *)(cfg + 28));
@@ -430,6 +435,7 @@ int main()
 
     *rx_phase = (uint32_t)floor((m_RxFreq + shift) / 125.0e6 * (1 << 30) + 0.5);
     *tx_phase = (uint32_t)floor(m_TxFreq / 125.0e6 * (1 << 30) + 0.5);
+    *sp_phase = (uint32_t)floor((m_FftFreq + shift) / 125.0e6 * (1 << 30) + 0.5);
 
     SetRXAMode(0, RXA_LSB);
     SetTXAMode(1, TXA_LSB);
@@ -469,6 +475,27 @@ int main()
 
     *tx_rst |= 1;
     *tx_rst &= ~1;
+
+    // Lazy way to create windowing function
+    XCreateAnalyzer(0, &rc, 512, 1, 1, 0);
+    new_window(0, 6, 512, 14.0);
+
+    // Set windowing function
+    DP a = pdisp[0];
+    pointerInt = win_data;
+    for (i = 0; i < 512; ++i)
+    {
+        win_data[i] = int32_t(floor(a->window[i] * (1 << 22) + 0.5));
+    }
+    // FFT decimation
+    *sp_rate = 1250;
+    // Set FFT averaging
+    *sp_pre = 511;
+    *sp_tot = 2047;
+
+    // FFT output buffer
+    volatile uint8_t m_OutputBufferFFT[512];
+    volatile int m_SemaFft = 0; // Semaphore FFT data ready
 
     if (i2c_codec)
     {
@@ -525,6 +552,13 @@ int main()
     }
     pthread_detach(thread2);
 
+    if (pthread_create(&thread3, NULL, fft_data_handler, NULL) < 0)
+    {
+        perror("pthread_create_fft");
+        return EXIT_FAILURE;
+    }
+    pthread_detach(thread3);
+
     InitCW();
     SendUart(60, ErrorCode);
     running = 1;
@@ -538,13 +572,14 @@ int main()
     {
         if (FFT != FFT_OFF)
         {
+            #if 0
             if (FFT_data_rdy != 0)
             {
                 FFT_data_rdy = 0;
-                
-                if (FFT == FFT_RF) // rf
+
+                if (FFT == FFT_RF)                    // rf
                     Spectrum0(1, 0, 0, 0, rxbuffer0); // calculate FFT for RF
-                else if (FFT == FFT_AF) // audio
+                else if (FFT == FFT_AF)               // audio
                 {
                     for (i = 0; i < 256; i++)
                     {
@@ -567,7 +602,42 @@ int main()
             }
             else
                 usleep(1000);
+            #endif
+            
+            if (m_SemaFft = 1)
+            {
+                SendUart(86, 0x10204080); // send start of line
+                #if 0
+                for(k=0; k<512; ++k)
+                {
+                    ++l;
+                    if(l>=150) l=0;        //test: sliding stairway
+                    m_OutputBufferFFT[k]=l/2.0+5.0;
+				}
+                #endif
 
+                for (i = 0; i < (512 / 4); ++i)
+                {
+                    u32UartSend = (uint32_t)m_OutputBufferFFT[i+0];
+                    u32UartSend = u32UartSend << 8;
+                    u32UartSend = (uint32_t)m_OutputBufferFFT[i+1];
+                    u32UartSend = u32UartSend << 8;
+                    u32UartSend = (uint32_t)m_OutputBufferFFT[i+2];
+                    u32UartSend = u32UartSend << 8;
+                    u32UartSend = (uint32_t)m_OutputBufferFFT[i+3];
+                    SendUart(100, u32UartSend); // send 4 bytes data
+
+                    ioctl(uart_fd, FIONREAD, &num); // test for UART input
+                    if (num != 0)
+                    {
+                        break;
+                    }
+                }
+                m_SemaFft = 0;
+
+            }
+
+            #if 0
             switch (FFT_step)
             {
             case 0:
@@ -588,7 +658,7 @@ int main()
                         sum = (uint8_t)(int32_t)(140.0 + pixeldBm[indexj]);
                     else
                         sum += (uint8_t)(int32_t)(140.0 + pixeldBm[indexj]);
-                    
+
                     if ((indexj & 3) != 3)
                     {
                         sum *= 256;
@@ -597,7 +667,7 @@ int main()
                         SendUart(100, sum); // send 4 bytes data
                     ++indexj;
                     ioctl(uart_fd, FIONREAD, &num); // test for UART input
-                    
+
                     if (num != 0)
                     {
                         break;
@@ -606,13 +676,14 @@ int main()
                 FFT_step = 0;
                 break;
             }
+            #endif
         }
 
         if (mode < 2)
         { //&&(FFT==0)) {
             while (Sema2 == 0)
                 usleep(2000); //wait for data in buffer3 (period 5,33 ms)
-            
+
             Sema1 = 0;
             NF1 = 0; // 600 Hz filter
             for (i = 40; i < 120; i++)
@@ -623,7 +694,7 @@ int main()
 
             if (NF1 < 0)
                 NF1 = -NF1;
-            
+
             Sema1 = 1;
             wert = Threshold3(NF1); //NF1: filtered NF sum value
 
@@ -688,6 +759,8 @@ int main()
                 {
                     *rx_phase = (uint32_t)floor((m_RxFreq + shift) / 125.0e6 * (1 << 30) + 0.5);
                     m_RxFreq = data;
+                    *sp_phase = (uint32_t)floor((m_FftFreq + shift) / 125.0e6 * (1 << 30) + 0.5);
+                    m_FftFreq = data;
                     /* configure ALEX */
                     alex_write(data);
                 }
@@ -709,7 +782,7 @@ int main()
             case COM_SPEAKER_VOL: // output volume
                 if (data > 40)
                     continue;
-                
+
                 if (i2c_codec)
                 {
                     //volume = 48 + data * 7;
@@ -728,13 +801,13 @@ int main()
             case COM_MIC_VOL: // Microphone volume
                 if (data > 30)
                     continue;
-                
+
                 if (i2c_codec)
                 {
                     volume = data; // 31 steps each 1.5 dB // 128 = mute
                     if (volume == 0)
                         volume = 128; // mute
-                    
+
                     i2c_write_addr_data8(i2c_fd, 0x00, volume);
                     i2c_write_addr_data8(i2c_fd, 0x02, volume);
                 }
@@ -748,7 +821,7 @@ int main()
             case COM_FILTER_BW:
                 if (data > 9)
                     continue;
-                
+
                 filter = data;
                 RXASetPassband(0, cutoff[mode][filter][0], cutoff[mode][filter][1]);
                 SetTXABandpassFreqs(1, cutoff[mode][filter][0], cutoff[mode][filter][1]);
@@ -757,7 +830,7 @@ int main()
             case COM_DEMOD_MODE:
                 if (data > 7)
                     continue; // WK
-                
+
                 mode = data;
                 shift = 0;
 
@@ -791,8 +864,8 @@ int main()
                     SetRXAMode(0, RXA_FM);
                     SetTXAMode(1, TXA_FM);
                     break;
-                case DEMOD_SAM:       // SAM
-                    mode = 5; // filters: like AM
+                case DEMOD_SAM: // SAM
+                    mode = 5;   // filters: like AM
                     SetRXAMode(0, RXA_SAM);
                     SetTXAMode(1, TXA_AM);
                     break;
@@ -806,7 +879,7 @@ int main()
             case COM_AGC_MODE:
                 if (data > 4)
                     continue;
-                
+
                 agc = data;
                 SetRXAAGCMode(0, agc);
                 break;
@@ -831,20 +904,20 @@ int main()
             case COM_CW_THR_HI:
                 if (mode > 1)
                     continue;
-                
+
                 if ((data > 10000) || (data < 100))
                     continue;
-                
+
                 CW_ThresholdHigh = data;
                 break;
 
             case COM_CW_THR_LO:
                 if (mode > 1)
                     continue;
-                
+
                 if ((data > 400) || (data < 5))
                     continue;
-                
+
                 CW_ThresholdLow = data;
                 break;
 
@@ -894,7 +967,7 @@ int main()
                     FFT = FFT_new = FFT_OFF;
                     if (Analyzer_exists >= 1)
                     {
-                        DestroyAnalyzer(0);
+                        //DestroyAnalyzer(0);
                         Analyzer_exists--;
                     }
                     break;
@@ -916,7 +989,7 @@ int main()
                     FFT_Length_new = 1 << (unionA.bData[3] + 8);
                 }
 
-                InitFFT(FFT_new);
+                //InitFFT(FFT_new);
                 FFT_step = 0;
                 FFT_data_rdy = 0;
             }
@@ -1001,13 +1074,13 @@ void *rx_data_handler(void *arg)
         {
             while (*dac_cntr > 256)
                 usleep(1000);
-            
+
             if (*dac_cntr == 0)
                 for (i = 0; i < 256; ++i)
                 {
                     *dac_data = 0;
                 }
-            
+
             if (mode < 2)
             {
                 Sema2 = 0;
@@ -1076,7 +1149,7 @@ void *tx_data_handler(void *arg)
 
             while (*adc_cntr < 256)
                 usleep(1000);
-            
+
             for (i = 0; i < 512; i += 2)
             {
                 value = *adc_data;
@@ -1096,6 +1169,35 @@ void *tx_data_handler(void *arg)
         for (i = 0; i < 512; ++i)
             *tx_data = buffer2[i];
     }
+    return NULL;
+}
+
+void *fft_data_handler(void *arg)
+{
+    int32_t i;
+
+    while (1)
+    {
+        while (*sp_cntr < 512)
+        {
+            usleep(100);
+        }
+
+        *sp_rst &= ~2;
+        *sp_rst &= ~4;
+
+        m_SemaFft = 0;
+        for (i = 0; i < 512; ++i)
+        {
+            // exp(1) = 2.71828182846
+            m_OutputBufferFFT[i] = (uint8_t) floor((5.0*log10(exp(1))/512.0) * (float)fft_data[i]);
+        }
+        m_SemaFft = 1;
+
+        *sp_rst |= 4;
+        *sp_rst |= 2;
+    }
+
     return NULL;
 }
 
@@ -1133,7 +1235,7 @@ uint8_t Threshold3(int32_t value)
         agc_delta = sig_avg - 100.0; // setpoint = 200
         if (agc_delta > 20)
             agc_delta = 20.0;
-        
+
         if (agc_delta < -20)
             agc_delta = -20.0;
         agc_factor *= 1.0 - agc_delta * 0.0000009; // 0.0000001
@@ -1190,7 +1292,7 @@ void InitFFT(uint8_t FFT_type)
 
     if ((FFT_type < FFT_RF) || (FFT_type > FFT_AF))
         return;
-    
+
     if ((FFT_type != FFT) || (FFT_Length_new != FFT_Length))
     {
         FFT_Length = FFT_Length_new;
