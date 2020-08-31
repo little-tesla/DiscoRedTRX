@@ -9,9 +9,11 @@ Plese note that the code in this fork and the one from ted051 is not compatible 
 Therefore follow the instructions below to install and update the base image from Pavel. Actually one needs only sdr-transceiver-emb.c to be copied to the RedPitaya and compile the application as described below.
 
 Currently the code running on the STM32 is untouched and has some bugs:
- * Popcorn sound during reception depending on selected FFT type. This is probably a problem caused by the larg FFT calculation on the RedPitaya.
  * Graphical glitches
  * Many compilation varnings
+
+RedPitaya known bugs:
+ * Popcorn sound during reception depending on selected FFT type. This is probably a problem caused by the large FFT calculation on the RedPitaya ARM.
 
 # Installation
 
@@ -46,7 +48,7 @@ root@bar:~$ reboot
 
 To compile the STM32 UI application follow below steps:
  1. On a Linux host (e.g. Ubuntu, Mint, Debian)
- 2. Download the ARM GCC toolchain and extract it to /home/opt (or update the path to the compiler in makefile)
+ 2. Download the ARM GCC toolchain from https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads and extract it to /home/opt (or update the path to the compiler in makefile)
  3. Checkout this repo
  4. Compile STM32 source code
  5. Download application to STM32 discovery board
@@ -57,7 +59,8 @@ Use a terminal to compile the code as follows:
 root@bar:~$ cd DiscoRedTRX/ui
 root@bar:~$ make
 ```
-
+ ### Load STM32 with Application
+ The STM32 discovery board has a built in StLink. Use it accordingly to flash the CPU.
 
 # HW Connection
 
