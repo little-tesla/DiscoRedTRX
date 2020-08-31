@@ -16,8 +16,10 @@
 //  TX- Pin : PC6 ==> CN4 D1
 //--------------------------------------------------------------
 
-#include "main.h"
 #include <math.h>
+
+#include "main.h"
+#include "morse.h"
 #include "stm32_ub_system.h"
 #include "stm32_ub_sgui.h"
 #include "stm32_ub_uart.h"
@@ -390,6 +392,15 @@ static char kuml3[9] = {'=', '1', '2', ' ', ' ', '3', '4', ' ', ' '};
 static char kuml4[9] = {'=', '!', '"', ' ', ' ', '#', '$', ' ', ' '};
 
 uint8_t position, posiy = 25;
+uint8_t UALabel;
+
+static void ShowFFT(int32_t S_Val1);
+static void paintArea(void);
+static void btn_Select(bool aktiv);
+static void SelMemo(bool aktiv);
+static void CalculatePower(void);
+static void MeasureZeroPower(void);
+static void SetBoxes();
 
 void GetCWTone()
 {
@@ -1226,7 +1237,7 @@ void ShowWaterfall(int32_t S_Val1)
 	PixelRow(unionD.bData[0]);
 }
 
-void ShowFFT(int32_t S_Val1)
+static void ShowFFT(int32_t S_Val1)
 {
 
 	unionD.dataA = S_Val1;
@@ -2369,7 +2380,7 @@ int main(void) // **************************************************************
 	}
 }
 
-void paintArea(void)
+static void paintArea(void)
 {
 	switch (oldarea)
 	{
@@ -5373,7 +5384,7 @@ void FreqSelectRdy(uint16_t zeile)
 	SGUI_TextPrintString(text); // Beschriftung
 }
 
-void btn_Select(bool aktiv)
+static void btn_Select(bool aktiv)
 {
 	uint8_t nr, zeile, help; // Band Nr /Memory Nr.
 
@@ -5482,7 +5493,7 @@ void btn_Select(bool aktiv)
 	}
 }
 
-void SetBoxes()
+static void SetBoxes()
 { //SelBandMode 0 = Band   1 = Memo
 	int8_t nr, i, k, m;
 	char frq[12];
@@ -5601,7 +5612,7 @@ void SelBand(bool aktiv)
 	}
 }
 
-void SelMemo(bool aktiv)
+static void SelMemo(bool aktiv)
 {
 	if (aktiv == true)
 	{
@@ -5785,7 +5796,7 @@ uint16_t calcU(uint16_t messRoh)
 	return (uint16_t)(1.63 * sqrt(wertdbl - 1450.0) + 202.0);
 }
 
-void CalculatePower(void)
+static void CalculatePower(void)
 {
 	uint16_t messw1, messw2, messwf1, messwf2, messaf0, messaf1, messaf2, messaf3;
 	float SWR;
@@ -5835,7 +5846,7 @@ void CalculatePower(void)
 	}
 }
 
-void MeasureZeroPower(void)
+static void MeasureZeroPower(void)
 {
 	/*	uint32_t cntrm, cntrn;
 	messwf=messwb=0;

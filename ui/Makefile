@@ -60,6 +60,7 @@ OBJECTS = \
   stm32_ub_touch_480x272.o \
   stm32_ub_uart.o \
   main.o \
+  morse.o \
   stm32f7xx_it.o \
   system_stm32f7xx.o \
   startup_stm32f746xx.o \
@@ -75,9 +76,11 @@ SOURCES = \
 
 vpath %.c $(SOURCES)
 
-CC = arm-none-eabi-gcc
-LD = arm-none-eabi-gcc
-OBJCOPY = arm-none-eabi-objcopy
+# Set path to ARM compiler
+CPATH = ~/opt/gcc-arm-none-eabi-9-2020-q2-update/bin
+CC = $(CPATH)/arm-none-eabi-gcc
+LD = $(CPATH)/arm-none-eabi-gcc
+OBJCOPY = $(CPATH)/arm-none-eabi-objcopy
 
 CFLAGS = \
   -Wall -O0 -mthumb -mcpu=cortex-m7 -mfpu=fpv5-sp-d16 -mfloat-abi=hard \

@@ -9,4 +9,3 @@ extern char sign;
 extern uint32_t smpl_ctr;
 extern uint16_t positx,posity;
 extern volatile int cw_receive_state, cw_dot_length, CW_TIMING_STATE;
-extern uint8_t UALabel;

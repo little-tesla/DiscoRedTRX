@@ -73,7 +73,7 @@ typedef enum
 #define    UART_TX_TIMEOUT         100
 
 
-
+extern uint8_t UALabel;
 
 //--------------------------------------------------------------
 // Endekennung beim Senden

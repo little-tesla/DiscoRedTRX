@@ -71,7 +71,8 @@ static UART_HandleTypeDef UartHandle7; // Com7
   int8_t rx_count=0;
   uint8_t rx_overflow6;
   uint8_t rx_rdy=1;
-  uint8_t UALabel;//85: S-Value / 86: KeyUp / 89: KeyDown
+  //uint8_t UALabel;//85: S-Value / 86: KeyUp / 89: KeyDown
+  // Moved to main....
 
   union {
   int32_t S_Value;

@@ -1,1 +1,0 @@
-gcc -O3 -march=armv7-a -mcpu=cortex-a9 -mtune=cortex-a9 -mfpu=neon -mfloat-abi=hard -ffast-math -Wall main.c -o main -Iwdsp -Lwdsp -lwdsp -lasound -lfftw3 -lm -lpthread
