@@ -87,10 +87,15 @@ uint32_t m_RxFreq = 7200000;
 uint32_t m_TxFreq = 7200000;
 uint32_t m_FftFreq = 7200000;
 
+// FFT output buffer
+volatile uint8_t m_OutputBufferFFT[512];
+volatile int m_SemaFft = 0; // Semaphore FFT data ready
+
 const float Log2c[16] = {0.0, 0.09, 0.17, 0.25, 0.32, 0.39, 0.46, 0.52, 0.58, 0.64, 0.70, 0.75, 0.81, 0.86, 0.91, 0.95};
 volatile float *rx_data, *tx_data;
 volatile uint16_t *rx_cntr, *tx_cntr, *dac_cntr, *adc_cntr;
 volatile uint8_t *rx_rst, *sp_rst, *tx_rst, *codec_rst;
+volatile uint16_t *dac_size, *sp_rate, *sp_pre, *sp_tot, *sp_cntr;
 volatile int32_t *dac_data, *adc_data;
 volatile int32_t *win_data, *fft_data;
 volatile int32_t *xadc;
@@ -242,7 +247,7 @@ int main()
     volatile void *cfg, *sts;
     volatile uint32_t *sp_phase, *tx_phase, *dac_phase, *alex, *tx_mux, *dac_mux;
     volatile int32_t *tx_ramp, *dac_ramp;
-    volatile uint16_t *tx_size, *dac_size, *sp_rate, *sp_pre, *sp_tot, *sp_cntr;
+    volatile uint16_t *tx_size;
     volatile uint16_t *tx_level, *dac_level;
     volatile uint8_t *gpio_in, *gpio_out;
     float scale, ramp[1024], a[4] = {0.35875, 0.48829, 0.14128, 0.01168};
@@ -273,7 +278,6 @@ int main()
         {{-2500, 2500}, {-3000, 3000}, {-3500, 3500}, {-4000, 4000}, {-4500, 4500}, {-5000, 5000}, {-6000, 6000}, {-8000, 8000}, {-9000, 9000}, {-12500, 12500}},
         {{-2500, 2500}, {-3000, 3000}, {-3500, 3500}, {-4000, 4000}, {-4500, 4500}, {-5000, 5000}, {-6250, 6250}, {-8000, 8000}, {-9000, 9000}, {-12500, 12500}}};
 
-    int rc;
     uint32_t u32UartSend;
 
     if ((fd = open("/dev/mem", O_RDWR)) < 0)
@@ -481,21 +485,16 @@ int main()
     new_window(0, 6, 512, 14.0);
 
     // Set windowing function
-    DP a = pdisp[0];
-    pointerInt = win_data;
+    DP d_data = pdisp[0];
     for (i = 0; i < 512; ++i)
     {
-        win_data[i] = int32_t(floor(a->window[i] * (1 << 22) + 0.5));
+        win_data[i] = (int32_t)(floor(d_data->window[i] * (1 << 22) + 0.5));
     }
     // FFT decimation
     *sp_rate = 1250;
     // Set FFT averaging
     *sp_pre = 511;
     *sp_tot = 2047;
-
-    // FFT output buffer
-    volatile uint8_t m_OutputBufferFFT[512];
-    volatile int m_SemaFft = 0; // Semaphore FFT data ready
 
     if (i2c_codec)
     {
@@ -604,7 +603,7 @@ int main()
                 usleep(1000);
             #endif
             
-            if (m_SemaFft = 1)
+            if (m_SemaFft > 0)
             {
                 SendUart(86, 0x10204080); // send start of line
                 #if 0
@@ -1178,23 +1177,30 @@ void *fft_data_handler(void *arg)
 
     while (1)
     {
+        if (*sp_cntr >= 1024)
+        {
+            *sp_rst &= ~2;
+            *sp_rst |= 4;
+            *sp_rst &= ~4;
+            *sp_rst |= 2;
+        }
+
         while (*sp_cntr < 512)
         {
             usleep(100);
         }
 
         *sp_rst &= ~2;
-        *sp_rst &= ~4;
+        *sp_rst |= 4;
 
         m_SemaFft = 0;
         for (i = 0; i < 512; ++i)
         {
-            // exp(1) = 2.71828182846
-            m_OutputBufferFFT[i] = (uint8_t) floor((5.0*log10(exp(1))/512.0) * (float)fft_data[i]);
+            m_OutputBufferFFT[i] = (uint8_t) floor(10*((float)fft_data[i] / 512.0)*0.434294482);
         }
-        m_SemaFft = 1;
+        ++m_SemaFft;
 
-        *sp_rst |= 4;
+        *sp_rst &= ~4;
         *sp_rst |= 2;
     }
 
